@@ -35,18 +35,24 @@ const getLocal = (key, fallback) => {
   catch { return fallback }
 }
 const setLocal = (key, value) => localStorage.setItem(key, JSON.stringify(value))
+const fromProduct = row => ({...row, oldPrice: row.old_price ?? row.oldPrice ?? null})
+const toProduct = product => {
+  const payload={...product,old_price:product.oldPrice ?? null}
+  delete payload.oldPrice
+  return payload
+}
 
 export async function loadProducts(){
   if (cloudEnabled){
     const {data,error}=await supabase.from('products').select('*').order('created_at',{ascending:false})
-    if(!error && data) return data
+    if(!error && data) return data.map(fromProduct)
   }
   return getLocal(K.products, seedProducts)
 }
 export async function saveProduct(product){
   if (cloudEnabled){
-    const payload={...product}; if(String(payload.id||'').startsWith('p')) delete payload.id
-    const {data,error}=await supabase.from('products').upsert(payload).select().single(); if(error) throw error; return data
+    const payload=toProduct(product); if(String(payload.id||'').startsWith('p')) delete payload.id
+    const {data,error}=await supabase.from('products').upsert(payload).select().single(); if(error) throw error; return fromProduct(data)
   }
   const list=getLocal(K.products, seedProducts); const item={...product,id:product.id||crypto.randomUUID()}; const next=list.some(x=>x.id===item.id)?list.map(x=>x.id===item.id?item:x):[item,...list]; setLocal(K.products,next); return item
 }
@@ -83,7 +89,11 @@ export async function updateOrderStatus(id,status){
 }
 
 export async function adminLogin(email,password){
-  if(cloudEnabled){ const {data,error}=await supabase.auth.signInWithPassword({email,password}); if(error) throw error; return data.user }
+  if(cloudEnabled){
+    const {data,error}=await supabase.auth.signInWithPassword({email,password}); if(error) throw error
+    if(data.user?.app_metadata?.role!=='admin'){ await supabase.auth.signOut(); throw new Error('This account is not an admin') }
+    return data.user
+  }
   if(email==='admin@fashion2gether.in' && password==='F2G@2026') return {email,local:true}
   throw new Error('Invalid admin credentials')
 }
