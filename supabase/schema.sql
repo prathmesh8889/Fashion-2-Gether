@@ -56,7 +56,7 @@ grant execute on function public.is_f2g_admin() to authenticated;
 drop policy if exists "public read active products" on public.products;
 create policy "public read active products" on public.products
 for select to anon, authenticated
-using (active = true or public.is_f2g_admin());
+using (active = true);
 
 drop policy if exists "admin manage products" on public.products;
 create policy "admin manage products" on public.products
@@ -67,7 +67,7 @@ with check (public.is_f2g_admin());
 drop policy if exists "public read active reels" on public.reels;
 create policy "public read active reels" on public.reels
 for select to anon, authenticated
-using (active = true or public.is_f2g_admin());
+using (active = true);
 
 drop policy if exists "admin manage reels" on public.reels;
 create policy "admin manage reels" on public.reels
